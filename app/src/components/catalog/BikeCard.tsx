@@ -55,10 +55,11 @@ export function BikeCard({
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              title={`Photo: ${credit.author} · ${credit.license}`}
+              title={`Photo: ${credit.author} · ${credit.license}${credit.note ? ` · ${credit.note}` : ''}`}
               className="absolute bottom-2 right-2 z-10 max-w-[85%] truncate rounded bg-black/65 px-1.5 py-0.5 text-[10px] text-white/85 backdrop-blur transition-colors hover:text-white"
             >
               {credit.author} · {credit.license}
+              {credit.note && ' *'}
             </a>
           )}
           <div className="absolute left-3 top-3 flex gap-1.5">

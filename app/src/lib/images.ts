@@ -6,6 +6,12 @@ export interface ImageCredit {
   author: string
   license: string
   title: string
+  /**
+   * Set when the available free photo shows a different model year or
+   * generation than the catalogue entry, so the UI can say so rather than
+   * implying it is the current bike.
+   */
+  note?: string
 }
 
 interface ImagesFile {

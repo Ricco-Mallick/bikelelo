@@ -180,7 +180,13 @@ export default function ModelDetail() {
                   >
                     {credit.author}
                   </a>{' '}
-                  ({credit.license}) via Wikimedia Commons. Illustrations are drawn by BikeLelo.
+                  ({credit.license}) via Wikimedia Commons.
+                  {credit.note && (
+                    <>
+                      {' '}
+                      <span className="text-amber-400">Note: this photo {credit.note}.</span>
+                    </>
+                  )}
                 </>
               ) : (
                 <>Illustration drawn by BikeLelo. No freely-licensed photograph of this model was available.</>

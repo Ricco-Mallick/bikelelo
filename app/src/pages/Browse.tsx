@@ -8,6 +8,7 @@ import { BikeCard } from '@/components/catalog/BikeCard'
 import { ActiveFilterChips, DEFAULT_FILTERS, FilterRail, type BrowseFilters } from '@/components/catalog/FilterRail'
 import { EmptyState } from '@/components/common/EmptyState'
 import { useCatalog } from '@/lib/catalog'
+import { imageCredit } from '@/lib/images'
 import { useStore } from '@/lib/store'
 
 type SortKey = 'popular' | 'price-asc' | 'price-desc' | 'cc-desc' | 'mileage-desc'
@@ -124,6 +125,7 @@ export default function Browse() {
   const saved = new Set([...garage, ...wishlist])
   const activeCount =
     filters.brands.length + filters.bodies.length + filters.fuels.length + filters.abs.length
+  const hasGenerationNote = filtered.some(({ model }) => imageCredit(model.slug)?.note)
 
   return (
     <div className="container py-10">
@@ -209,6 +211,12 @@ export default function Browse() {
                 />
               ))}
             </div>
+          )}
+          {hasGenerationNote && (
+            <p className="mt-6 text-xs text-muted-foreground">
+              * Photo shows an earlier generation of that model. Open the bike page for the exact year and full
+              attribution.
+            </p>
           )}
         </div>
       </div>
