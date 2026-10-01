@@ -90,6 +90,9 @@ export interface Catalog {
   retailers: Retailer[]
   parts: Part[]
   fitments: Fitment[]
+  /** Retailer offers from the database. Empty when running on the bundled snapshot. */
+  listings: Listing[]
+  price_history: PriceHistoryPoint[]
 }
 
 /** A listing is a retailer offer for a variant. Bundled seed uses synthetic offers. */
@@ -106,6 +109,11 @@ export interface Listing {
 export interface PricePoint {
   price_inr: number
   recorded_at: string
+}
+
+/** A price-history row from Supabase, flattened to the variant it belongs to. */
+export interface PriceHistoryPoint extends PricePoint {
+  variant_slug: string
 }
 
 export interface BuildItem {

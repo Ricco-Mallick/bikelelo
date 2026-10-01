@@ -217,7 +217,16 @@ export default function FindBike() {
                   className="flex gap-4 rounded-xl border border-border bg-card p-4 transition-colors hover:border-ring/40"
                 >
                   <div className="hidden size-24 shrink-0 overflow-hidden rounded-lg bg-secondary sm:block">
-                    <BikeArt body={model.body_type} fuel={model.fuel_type} />
+                    {model.image_url ? (
+                      <img
+                        src={model.image_url}
+                        alt={`${brandsBySlug.get(model.brand_slug)?.name ?? ''} ${model.name}`}
+                        loading="lazy"
+                        className="size-full object-cover"
+                      />
+                    ) : (
+                      <BikeArt body={model.body_type} fuel={model.fuel_type} />
+                    )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-3">

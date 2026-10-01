@@ -11,10 +11,11 @@ import { SpecTable } from '@/components/catalog/SpecTable'
 import { PricePanel } from '@/components/catalog/PricePanel'
 import { BikeCard } from '@/components/catalog/BikeCard'
 import { BikeArt } from '@/components/catalog/BikeArt'
+import { creditIsComplete, imageCredit } from '@/lib/images'
 import { EmptyState } from '@/components/common/EmptyState'
 import { ratingSummary, reviewsFor } from '@/data/reviews'
 import { useCatalog, modelPriceRange } from '@/lib/catalog'
-import { syntheticListings, syntheticPriceHistory, bestOffer, preferredOem } from '@/lib/pricing'
+import { offersFor, historyFor, bestOffer, preferredOem } from '@/lib/pricing'
 import {
   emi,
   formatINR,
@@ -30,8 +31,18 @@ import NotFound from './NotFound'
 
 export default function ModelDetail() {
   const { modelSlug } = useParams<{ modelSlug: string }>()
-  const { modelsBySlug, brandsBySlug, variantsByModel, retailers, retailersBySlug, fitmentsByPart, partsBySlug, models } =
-    useCatalog()
+  const {
+    modelsBySlug,
+    brandsBySlug,
+    variantsByModel,
+    retailers,
+    retailersBySlug,
+    fitmentsByPart,
+    partsBySlug,
+    models,
+    listings: dbListings,
+    priceHistory,
+  } = useCatalog()
   const { garage, wishlist, compare, toggleGarage, toggleCompare, recordView } = useStore()
   const [variantSlug, setVariantSlug] = useState<string | null>(null)
 
@@ -50,8 +61,13 @@ export default function ModelDetail() {
   if (!model || !active) return <NotFound />
 
   const brand = brandsBySlug.get(model.brand_slug)
-  const listings = syntheticListings(active, retailers, preferredOem(model.brand_slug))
-  const history = syntheticPriceHistory(active, bestOffer(listings))
+  const { listings, isLive } = offersFor(active, retailers, dbListings, preferredOem(model.brand_slug))
+  const history = historyFor(
+    active,
+    priceHistory.filter((p) => p.variant_slug === active.slug),
+    bestOffer(listings),
+    isLive,
+  )
   const engineCc = Number(active.specs.engine_cc) || null
   const range = modelPriceRange(variants)
 
@@ -67,6 +83,7 @@ export default function ModelDetail() {
   const saved = variants.some((v) => garage.includes(v.slug) || wishlist.includes(v.slug))
   const reviews = reviewsFor(model.slug)
   const summary = ratingSummary(reviews)
+  const credit = imageCredit(model.slug)
 
   return (
     <div className="container py-8">
@@ -139,17 +156,37 @@ export default function ModelDetail() {
           </header>
 
           {/* Visual */}
-          <div className="relative aspect-[16/9] overflow-hidden rounded-2xl border border-border bg-card">
-            {active.image_url || model.image_url ? (
-              <img
-                src={active.image_url || model.image_url}
-                alt={`${brand?.name} ${model.name} ${active.name}`}
-                className="size-full object-cover"
-              />
-            ) : (
-              <BikeArt body={model.body_type} fuel={model.fuel_type} />
-            )}
-          </div>
+          <figure className="space-y-2">
+            <div className="relative aspect-[16/9] overflow-hidden rounded-2xl border border-border bg-card">
+              {active.image_url || model.image_url ? (
+                <img
+                  src={active.image_url || model.image_url}
+                  alt={`${brand?.name} ${model.name} ${active.name}`}
+                  className="size-full object-cover"
+                />
+              ) : (
+                <BikeArt body={model.body_type} fuel={model.fuel_type} />
+              )}
+            </div>
+            <figcaption className="text-[11px] text-muted-foreground">
+              {model.image_url && credit && creditIsComplete(credit) ? (
+                <>
+                  Photo by{' '}
+                  <a
+                    href={credit.source_page}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline decoration-dotted hover:text-foreground"
+                  >
+                    {credit.author}
+                  </a>{' '}
+                  ({credit.license}) via Wikimedia Commons. Illustrations are drawn by BikeLelo.
+                </>
+              ) : (
+                <>Illustration drawn by BikeLelo. No freely-licensed photograph of this model was available.</>
+              )}
+            </figcaption>
+          </figure>
 
           {/* Variants */}
           {variants.length > 1 && (
@@ -268,6 +305,7 @@ export default function ModelDetail() {
             retailersBySlug={retailersBySlug}
             model={model}
             brand={brand}
+            isLive={isLive}
           />
           <OnRoadCalculator exShowroom={active.ex_showroom_inr ?? 0} engineCc={engineCc} fuel={model.fuel_type} />
           <EmiCalculator exShowroom={active.ex_showroom_inr ?? 0} />

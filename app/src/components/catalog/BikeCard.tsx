@@ -3,6 +3,7 @@ import { GitCompareArrows, Heart, Zap } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { BikeArt } from './BikeArt'
+import { creditIsComplete, imageCredit } from '@/lib/images'
 import { cn } from '@/lib/utils'
 import { formatINRCompact } from '@/lib/format'
 import { modelPriceRange } from '@/lib/catalog'
@@ -32,6 +33,7 @@ export function BikeCard({
   const cc = hero?.specs.engine_cc
   const mileage = hero?.specs.mileage_kmpl
   const abs = hero?.specs.abs
+  const credit = imageCredit(model.slug)
 
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-colors hover:border-ring/40">
@@ -46,6 +48,18 @@ export function BikeCard({
             />
           ) : (
             <BikeArt body={model.body_type} fuel={model.fuel_type} className="p-2" />
+          )}
+          {model.image_url && credit && creditIsComplete(credit) && (
+            <a
+              href={credit.source_page}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              title={`Photo: ${credit.author} · ${credit.license}`}
+              className="absolute bottom-2 right-2 z-10 max-w-[85%] truncate rounded bg-black/65 px-1.5 py-0.5 text-[10px] text-white/85 backdrop-blur transition-colors hover:text-white"
+            >
+              {credit.author} · {credit.license}
+            </a>
           )}
           <div className="absolute left-3 top-3 flex gap-1.5">
             <Badge variant="secondary" className="capitalize backdrop-blur">

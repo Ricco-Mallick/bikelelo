@@ -100,6 +100,34 @@ export function priceDelta(points: PricePoint[]): number {
   return first === 0 ? 0 : ((last - first) / first) * 100
 }
 
+/**
+ * Offers for a variant, preferring real rows from the database and falling back
+ * to indicative estimates while the catalogue has no live listings yet.
+ */
+export function offersFor(
+  variant: Variant,
+  retailers: Retailer[],
+  dbListings: Listing[],
+  preferredOemSlug?: string,
+): { listings: Listing[]; isLive: boolean } {
+  const live = dbListings.filter((l) => l.variant_slug === variant.slug && l.price_inr > 0)
+  if (live.length > 0) {
+    return { listings: [...live].sort((a, b) => a.price_inr - b.price_inr), isLive: true }
+  }
+  return { listings: syntheticListings(variant, retailers, preferredOemSlug), isLive: false }
+}
+
+/** Price history for a variant: real observations when present, else indicative. */
+export function historyFor(
+  variant: Variant,
+  dbHistory: PricePoint[],
+  fallbackListing: Listing | undefined,
+  isLive: boolean,
+): PricePoint[] {
+  if (isLive && dbHistory.length > 1) return dbHistory
+  return syntheticPriceHistory(variant, fallbackListing)
+}
+
 /** Indicative market price per accessory category (INR). */
 const CATEGORY_PRICE: Record<string, [number, number]> = {
   exhaust: [3500, 45000],

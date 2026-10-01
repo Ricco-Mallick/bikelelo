@@ -1,5 +1,5 @@
-# Pages serves the repository root (branch deploy), so the built app must be
-# committed at the root. This rebuilds it whenever the source under app/ changes.
+# GitHub Pages serves the repository root (branch deploy), so the built app must
+# live at index.html. This rebuilds it whenever the source under app/ changes.
 name: Build & publish
 
 on:
@@ -42,6 +42,10 @@ jobs:
         env:
           SINGLE_FILE: '1'
           VITE_BASE: /
+          # Points the app at the live Supabase project. The publishable key is
+          # safe in a static bundle; Row Level Security protects the data.
+          VITE_SUPABASE_URL: https://tdrawkjjvybtkfscetlb.supabase.co
+          VITE_SUPABASE_ANON_KEY: sb_publishable_Cdzp_OhYvCeJ5rA5fssG1g_7JoVVHfL
         run: pnpm build
 
       - name: Publish build to the repository root

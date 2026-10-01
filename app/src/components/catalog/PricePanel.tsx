@@ -14,9 +14,11 @@ interface PricePanelProps {
   retailersBySlug: Map<string, Retailer>
   model?: BikeModel
   brand?: Brand
+  /** True when offers come from real database listings rather than estimates. */
+  isLive?: boolean
 }
 
-export function PricePanel({ listings, history, retailersBySlug, model, brand }: PricePanelProps) {
+export function PricePanel({ listings, history, retailersBySlug, model, brand, isLive = false }: PricePanelProps) {
   const best = bestOffer(listings)
   const delta = priceDelta(history)
   const dropping = delta < -0.5
@@ -30,7 +32,7 @@ export function PricePanel({ listings, history, retailersBySlug, model, brand }:
             <p className="mt-1 text-3xl font-semibold tracking-tight">{formatINR(best?.price_inr)}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {best ? `at ${retailersBySlug.get(best.retailer_slug)?.name ?? best.retailer_slug}` : 'No live offers yet'}
-              {best && ` · updated ${timeAgo(best.last_seen_at)}`}
+              {best && isLive && ` · checked ${timeAgo(best.last_seen_at)}`}
             </p>
           </div>
           {history.length > 1 && (
@@ -77,8 +79,17 @@ export function PricePanel({ listings, history, retailersBySlug, model, brand }:
           })}
         </div>
         <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-          BikeLelo aggregates public listings. We may earn a commission when you buy through these links — the price you
-          pay is unchanged.
+          {isLive ? (
+            <>
+              Offers are refreshed from public retailer listings by a scheduled scraper. We may earn a commission when
+              you buy through these links, which never changes the price you pay.
+            </>
+          ) : (
+            <>
+              No live retailer prices for this variant yet, so the figures above are indicative estimates based on the
+              official ex-showroom price. Sizes and stock may differ at the retailer.
+            </>
+          )}
         </p>
       </div>
 

@@ -6,11 +6,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { EmptyState } from '@/components/common/EmptyState'
 import { useCatalog } from '@/lib/catalog'
 import { formatINR, formatNumber } from '@/lib/format'
-import { syntheticListings, bestOffer, preferredOem } from '@/lib/pricing'
+import { offersFor, bestOffer, preferredOem } from '@/lib/pricing'
 import { useStore } from '@/lib/store'
 
 export default function Compare() {
-  const { variantsBySlug, modelsBySlug, brandsBySlug, specKeysByKey, retailers, retailersBySlug } = useCatalog()
+  const { variantsBySlug, modelsBySlug, brandsBySlug, specKeysByKey, retailers, retailersBySlug, listings: dbListings } =
+    useCatalog()
   const { compare, toggleCompare, clearCompare } = useStore()
 
   const variants = compare.map((slug) => variantsBySlug.get(slug)).filter((v): v is NonNullable<typeof v> => Boolean(v))
@@ -46,14 +47,14 @@ export default function Compare() {
     (a, b) => (specKeysByKey.get(a)?.sort_order ?? 999) - (specKeysByKey.get(b)?.sort_order ?? 999),
   )
 
-  const offersFor = (v: (typeof variants)[number]) => {
+  const variantOffers = (v: (typeof variants)[number]) => {
     const m = modelsBySlug.get(v.model_slug)
-    return syntheticListings(v, retailers, m ? preferredOem(m.brand_slug) : undefined)
+    return offersFor(v, retailers, dbListings, m ? preferredOem(m.brand_slug) : undefined).listings
   }
 
   const bestPriceIndex = variants.reduce(
     (best, v, i) => {
-      const p = bestOffer(offersFor(v))?.price_inr ?? Infinity
+      const p = bestOffer(variantOffers(v))?.price_inr ?? Infinity
       return p < best.price ? { price: p, index: i } : best
     },
     { price: Infinity, index: -1 },
@@ -119,7 +120,7 @@ export default function Compare() {
             <TableRow>
               <TableCell className="font-medium text-muted-foreground">Best offer</TableCell>
               {variants.map((v) => {
-                const offer = bestOffer(offersFor(v))
+                const offer = bestOffer(variantOffers(v))
                 return (
                   <TableCell key={v.slug} className="text-sm">
                     {offer ? (

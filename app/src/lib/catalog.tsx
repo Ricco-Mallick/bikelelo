@@ -1,6 +1,18 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import seedJson from '@/data/catalog.json'
-import type { Brand, BikeModel, Catalog, Fitment, Part, Retailer, SpecKey, Variant } from './types'
+import { MODEL_IMAGES } from './images'
+import type {
+  Brand,
+  BikeModel,
+  Catalog,
+  Fitment,
+  Listing,
+  Part,
+  PriceHistoryPoint,
+  Retailer,
+  SpecKey,
+  Variant,
+} from './types'
 import { supabase, isSupabaseConfigured } from './supabase'
 
 export const seedCatalog = seedJson as unknown as Catalog
@@ -17,6 +29,8 @@ interface CatalogIndex {
   retailers: Retailer[]
   parts: Part[]
   fitments: Fitment[]
+  listings: Listing[]
+  priceHistory: PriceHistoryPoint[]
   brandsBySlug: Map<string, Brand>
   modelsBySlug: Map<string, BikeModel>
   variantsBySlug: Map<string, Variant>
@@ -28,6 +42,15 @@ interface CatalogIndex {
 }
 
 function indexCatalog(catalog: Catalog): CatalogIndex {
+  // Fill model imagery from the Commons photo map; models without one keep an
+  // empty image_url and fall back to the drawn BikeArt silhouette.
+  const withImages: Catalog = {
+    ...catalog,
+    models: catalog.models.map((m) =>
+      m.image_url ? m : { ...m, image_url: MODEL_IMAGES[m.slug]?.url ?? '' },
+    ),
+  }
+  catalog = withImages
   const brandsBySlug = new Map(catalog.brands.map((b) => [b.slug, b]))
   const modelsBySlug = new Map(catalog.models.map((m) => [m.slug, m]))
   const variantsBySlug = new Map(catalog.variants.map((v) => [v.slug, v]))
@@ -56,6 +79,8 @@ function indexCatalog(catalog: Catalog): CatalogIndex {
     retailers: catalog.retailers,
     parts: catalog.parts,
     fitments: catalog.fitments,
+    listings: catalog.listings ?? [],
+    priceHistory: catalog.price_history ?? [],
     brandsBySlug,
     modelsBySlug,
     variantsBySlug,
@@ -109,7 +134,7 @@ export function CatalogProvider({ children }: { children: ReactNode }) {
 
 async function fetchLiveCatalog(): Promise<Catalog> {
   const client = supabase!
-  const [brands, models, variants, specKeys, variantSpecs, retailers, parts, fitments] = await Promise.all([
+  const [brands, models, variants, specKeys, variantSpecs, retailers, parts, fitments, listings] = await Promise.all([
     client.from('brands').select('slug,name,country,logo_url'),
     client.from('models').select('slug,brand_slug,name,body_type,fuel_type,segment,launch_year,summary,image_url'),
     client.from('variants').select('slug,model_slug,name,ex_showroom_inr,gst_rate,image_url'),
@@ -118,9 +143,21 @@ async function fetchLiveCatalog(): Promise<Catalog> {
     client.from('retailers').select('slug,name,type,base_url,logo_url'),
     client.from('parts').select('slug,name,category,brand_name,image_url,description'),
     client.from('fitments').select('part_slug,make_slug,model_slug,variant_slug,year_from,year_to,notes,fit'),
+    client
+      .from('listings')
+      .select('id,variant_slug,retailer_slug,url,price_inr,in_stock,is_primary,last_seen_at')
+      .not('variant_slug', 'is', null),
   ])
   const firstError =
-    brands.error ?? models.error ?? variants.error ?? specKeys.error ?? variantSpecs.error ?? retailers.error ?? parts.error ?? fitments.error
+    brands.error ??
+    models.error ??
+    variants.error ??
+    specKeys.error ??
+    variantSpecs.error ??
+    retailers.error ??
+    parts.error ??
+    fitments.error ??
+    listings.error
   if (firstError) throw firstError
 
   const specsByVariant = new Map<string, Record<string, string | number | boolean | null>>()
@@ -135,6 +172,34 @@ async function fetchLiveCatalog(): Promise<Catalog> {
     specsByVariant.set(key, bucket)
   }
 
+  const listingRows = listings.data ?? []
+  const variantByListing = new Map<string, string>()
+  for (const row of listingRows) {
+    if (row.variant_slug) variantByListing.set(String(row.id), String(row.variant_slug))
+  }
+
+  // Price history is keyed by listing, so flatten it to the variant it belongs to.
+  let priceHistory: PriceHistoryPoint[] = []
+  if (variantByListing.size > 0) {
+    const { data: observations } = await client
+      .from('price_observations')
+      .select('listing_id,price_inr,recorded_at')
+      .order('recorded_at', { ascending: true })
+      .limit(5000)
+    priceHistory = (observations ?? [])
+      .map((row) => {
+        const variantSlug = variantByListing.get(String(row.listing_id))
+        return variantSlug
+          ? {
+              variant_slug: variantSlug,
+              price_inr: Number(row.price_inr),
+              recorded_at: String(row.recorded_at),
+            }
+          : null
+      })
+      .filter((p): p is PriceHistoryPoint => p !== null)
+  }
+
   return {
     generated_at: new Date().toISOString(),
     brands: (brands.data ?? []) as Brand[],
@@ -147,6 +212,18 @@ async function fetchLiveCatalog(): Promise<Catalog> {
     retailers: (retailers.data ?? []) as Retailer[],
     parts: (parts.data ?? []) as Part[],
     fitments: (fitments.data ?? []) as Fitment[],
+    listings: listingRows
+      .filter((row) => row.variant_slug)
+      .map((row) => ({
+        variant_slug: String(row.variant_slug),
+        retailer_slug: String(row.retailer_slug),
+        url: String(row.url ?? ''),
+        price_inr: Number(row.price_inr),
+        in_stock: Boolean(row.in_stock),
+        is_primary: Boolean(row.is_primary),
+        last_seen_at: String(row.last_seen_at ?? new Date().toISOString()),
+      })),
+    price_history: priceHistory,
   }
 }
 
